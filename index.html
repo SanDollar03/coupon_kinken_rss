@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地域復興クーポン収集</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green:      #0F6E56;
+  --green-dark: #085041;
+  --green-light:#E1F5EE;
+  --amber:      #854F0B;
+  --amber-light:#FAEEDA;
+  --purple:     #3C3489;
+  --purple-light:#EEEDFE;
+  --red:        #A32D2D;
+  --red-light:  #FCEBEB;
+  --gray:       #6b6a66;
+  --gray-light: #f3f3f1;
+  --border:     rgba(0,0,0,0.10);
+  --border2:    rgba(0,0,0,0.18);
+  --text:       #111;
+  --text2:      #555;
+  --text3:      #999;
+  --surface:    #fff;
+  --r:  6px;
+  --rl: 10px;
+}
+
+body {
+  font-family: 'Hiragino Sans', 'Yu Gothic UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f5f4f1;
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Header ───────────────────────────────────────── */
+.site-header {
+  background: var(--green);
+  color: #fff;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.header-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0.9rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.header-title { font-size: 17px; font-weight: 600; letter-spacing: 0.01em; }
+.header-title small {
+  font-size: 11px; font-weight: 400;
+  background: rgba(255,255,255,0.2);
+  padding: 2px 7px; border-radius: 4px;
+  margin-left: 8px; vertical-align: middle;
+}
+.header-sub { font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+
+/* ── Main Layout ──────────────────────────────────── */
+.wrap { max-width: 980px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+/* ── Controls ─────────────────────────────────────── */
+.controls-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rl);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.controls-row {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 8px;
+}
+.controls-row:last-child { margin-bottom: 0; }
+.ctrl-label {
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  min-width: 60px; white-space: nowrap;
+}
+input[type=text], input[type=date], select {
+  font-size: 13px; padding: 6px 10px;
+  border: 1px solid var(--border2); border-radius: var(--r);
+  background: #fff; color: var(--text);
+  outline: none; transition: border-color 0.15s;
+  font-family: inherit;
+}
+input[type=text]:focus, input[type=date]:focus, select:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(15,110,86,0.1);
+}
+input[type=text] { flex: 1; min-width: 180px; }
+select { cursor: pointer; }
+.btn-fetch {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; padding: 7px 18px;
+  border-radius: var(--r); border: none;
+  background: var(--green); color: #fff;
+  cursor: pointer; transition: background 0.14s;
+  font-family: inherit; white-space: nowrap;
+}
+.btn-fetch:hover { background: var(--green-dark); }
+.btn-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-fetch svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+.date-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 10px; background: var(--gray-light);
+  border-radius: var(--r); border: 1px solid var(--border);
+}
+.date-sep { font-size: 12px; color: var(--text3); }
+.btn-clear {
+  font-size: 11px; padding: 3px 10px; border-radius: var(--r);
+  border: 1px solid var(--border2); background: transparent;
+  color: var(--text3); cursor: pointer; margin-left: auto;
+  transition: all 0.12s;
+}
+.btn-clear:hover { background: var(--red-light); color: var(--red); border-color: var(--red); }
+
+/* ── Metrics ──────────────────────────────────────── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px,1fr));
+  gap: 10px; margin-bottom: 1.25rem;
+}
+.metric {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 0.8rem 1rem;
+}
+.metric-lbl { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+.metric-val { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+.metric-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+/* ── Status bar ───────────────────────────────────── */
+.status-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: var(--text2); margin-bottom: 1rem;
+  min-height: 20px;
+}
+.spinner {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid #ddd; border-top-color: var(--green);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+  margin-right: 5px; vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Feed log ─────────────────────────────────────── */
+.feed-log { margin-bottom: 1.25rem; }
+.feed-log summary {
+  font-size: 12px; color: var(--text2); cursor: pointer;
+  user-select: none; padding: 4px 0;
+}
+.feed-log summary:hover { color: var(--text); }
+.feed-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px; margin-top: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r);
+  overflow: hidden;
+}
+.feed-table th {
+  text-align: left; padding: 6px 10px;
+  background: var(--gray-light); color: var(--text2);
+  border-bottom: 1px solid var(--border2); font-weight: 600;
+}
+.feed-table td { padding: 5px 10px; border-bottom: 1px solid var(--border); }
+.feed-table tr:last-child td { border-bottom: none; }
+.st-ok   { color: var(--green);  font-weight: 600; }
+.st-err  { color: var(--red); }
+.st-warn { color: var(--amber); }
+
+/* ── Cards ────────────────────────────────────────── */
+.card-list { display: flex; flex-direction: column; gap: 10px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--rl); padding: 1rem 1.25rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover { border-color: var(--border2); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card.is-new { border-left: 3px solid var(--green); border-radius: 0 var(--rl) var(--rl) 0; }
+
+.card-top {
+  display: flex; justify-content: space-between;
+  align-items: flex-start; gap: 10px; margin-bottom: 8px;
+}
+.card-title {
+  font-size: 14px; font-weight: 600; flex: 1;
+  line-height: 1.5; color: var(--text); text-decoration: none;
+}
+.card-title:hover { color: var(--green); text-decoration: underline; }
+.card-title-plain {
+  font-size: 14px; font-weight: 600; flex: 1;
+  line-height: 1.5; color: var(--text);
+}
+.badges { display: flex; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
+.badge {
+  font-size: 10px; font-weight: 600; padding: 2px 8px;
+  border-radius: 4px; white-space: nowrap;
+}
+.b-new    { background: var(--green-light);  color: var(--green-dark); }
+.b-urgent { background: var(--amber-light);  color: var(--amber); }
+.b-area   { background: var(--purple-light); color: var(--purple); }
+.b-src    { background: var(--gray-light);   color: var(--gray); border: 1px solid var(--border); }
+.b-kw     { background: var(--green-light);  color: var(--green-dark); }
+
+.card-meta {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-size: 11px; color: var(--text3); margin-bottom: 6px;
+}
+.meta-start { color: var(--green); font-weight: 600; }
+.card-summary { font-size: 12px; color: var(--text2); line-height: 1.7; }
+.card-summary a { color: var(--green); text-decoration: underline; word-break: break-all; }
+.card-summary a:hover { color: var(--green-dark); }
+.card-kws { margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+.card-footer {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end;
+}
+.btn-link {
+  font-size: 12px; font-weight: 600; padding: 5px 14px;
+  border-radius: var(--r); border: 1px solid var(--green);
+  background: transparent; color: var(--green);
+  text-decoration: none; cursor: pointer;
+  transition: all 0.13s; display: inline-block;
+}
+.btn-link:hover { background: var(--green); color: #fff; }
+
+/* ── Empty / Error ────────────────────────────────── */
+.empty {
+  padding: 3rem; text-align: center; color: var(--text2);
+  font-size: 14px; background: var(--surface);
+  border-radius: var(--rl); border: 1px solid var(--border);
+  line-height: 2;
+}
+.empty-icon { font-size: 36px; display: block; margin-bottom: 10px; opacity: 0.35; }
+
+/* ── Footer ───────────────────────────────────────── */
+.site-footer {
+  margin-top: 3rem; padding: 1.25rem 1.5rem;
+  font-size: 11px; color: var(--text3);
+  text-align: center; line-height: 2;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div>
+      <div class="header-title">
+        🎫 地域復興クーポン収集ダッシュボード
+        <small>RSS版</small>
+      </div>
+      <div class="header-sub">Google News・NHK 等の RSS から収集 ／ APIキー不要 ／ ファイルをブラウザで開くだけで動作</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- Controls -->
+  <div class="controls-card">
+    <div class="controls-row">
+      <span class="ctrl-label">キーワード</span>
+      <input type="text" id="kwInput" placeholder="例: 東京 プレミアム">
+      <select id="regionSel">
+        <option value="">全地域</option>
+        <option value="北海道・東北">北海道・東北</option>
+        <option value="関東">関東</option>
+        <option value="中部">中部</option>
+        <option value="近畿">近畿</option>
+        <option value="中国・四国">中国・四国</option>
+        <option value="九州・沖縄">九州・沖縄</option>
+      </select>
+      <select id="daysSel">
+        <option value="7">直近7日</option>
+        <option value="30" selected>直近30日</option>
+        <option value="90">直近90日</option>
+      </select>
+      <button class="btn-fetch" id="fetchBtn" onclick="doFetch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 .49-5"/>
+        </svg>
+        RSS収集を実行
+      </button>
+    </div>
+    <div class="controls-row">
+      <span class="ctrl-label">開始日</span>
+      <div class="date-row">
+        <input type="date" id="startFrom" title="開始日（以降）">
+        <span class="date-sep">〜</span>
+        <input type="date" id="startTo" title="開始日（以前）">
+        <button class="btn-clear" onclick="clearDates()">✕ クリア</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-lbl">収集件数</div>
+      <div class="metric-val" id="mTotal">—</div>
+      <div class="metric-sub">件</div>
+    </div>
+    <div class="metric">
+      <div class="metric-lbl">新着（7日以内）</div>
+      <div class="metric-val" id="mNew">—</div>
+      <div class="metric-sub">件</div>
+    </div>
+    <div class="metric">
+      <div class="metric-lbl">締切間近</div>
+      <div class="metric-val" id="mUrgent">—</div>
+      <div class="metric-sub">件</div>
+    </div>
+    <div class="metric">
+      <div class="metric-lbl">成功フィード</div>
+      <div class="metric-val" id="mFeeds">—</div>
+      <div class="metric-sub" id="mFeedsTotal">/ — 件</div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <span id="statusText">「RSS収集を実行」を押してください</span>
+    <span id="loadingSpan" style="display:none">
+      <span class="spinner"></span>RSSフィードを取得中...
+    </span>
+  </div>
+
+  <!-- Feed log -->
+  <details class="feed-log" id="feedLog" style="display:none">
+    <summary>▶ フィード取得ログを表示</summary>
+    <table class="feed-table">
+      <thead><tr><th>フィード名</th><th>取得件数</th><th>ステータス</th></tr></thead>
+      <tbody id="feedTableBody"></tbody>
+    </table>
+  </details>
+
+  <!-- Card list -->
+  <div class="card-list" id="cardList">
+    <div class="empty">
+      <span class="empty-icon">📡</span>
+      「RSS収集を実行」ボタンを押して<br>
+      全国のクーポン情報を収集してください<br>
+      <small style="font-size:11px;color:#aaa">
+        ※ CORSプロキシ（allorigins.win）経由でRSSを取得します
+      </small>
+    </div>
+  </div>
+
+</div>
+
+<footer class="site-footer">
+  情報源: Google News RSS / NHK ニュース RSS / Yahoo! ニュース RSS<br>
+  掲載情報は参考用です。申込・詳細は必ず各自治体の公式サイトをご確認ください。<br>
+  このファイルはHTML単体で動作します。Python・サーバー不要。
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════
+// 設定
+// ═══════════════════════════════════════════════════
+const PROXY = 'https://api.allorigins.win/raw?url=';
+
+const FEEDS = [
+  // ── Google News: 既存5本 ──────────────────────────────
+  { id: 'gn1', name: 'Google News: プレミアム商品券',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('プレミアム商品券 自治体') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn2', name: 'Google News: 地域振興クーポン',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('地域振興クーポン 申込') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn3', name: 'Google News: 消費喚起商品券',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('消費喚起 商品券 市区町村 2026') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn4', name: 'Google News: 地域復興クーポン',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('地域復興 クーポン 小売') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn5', name: 'Google News: デジタルクーポン',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('デジタルクーポン 自治体 2026') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  // ── Google News: 追加6本 ──────────────────────────────
+  { id: 'gn6', name: 'Google News: 割増商品券',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('割増商品券 自治体') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn7', name: 'Google News: 地域商品券申込',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('地域商品券 申込 2026') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn8', name: 'Google News: キャッシュレス還元',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('キャッシュレス還元 自治体') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn9', name: 'Google News: 重点支援交付金商品券',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('重点支援地方交付金 商品券') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn10', name: 'Google News: プレミアム付商品券抽選',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('プレミアム付商品券 抽選') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  { id: 'gn11', name: 'Google News: 地域通貨クーポン',
+    url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('地域通貨 クーポン') + '&hl=ja&gl=JP&ceid=JP:ja' },
+  // ── NHK ──────────────────────────────────────────────
+  { id: 'nhk0', name: 'NHK: 全ニュース',
+    url: 'https://www3.nhk.or.jp/rss/news/cat0.xml' },
+  { id: 'nhk1', name: 'NHK: 経済ニュース',
+    url: 'https://www3.nhk.or.jp/rss/news/cat5.xml' },
+  { id: 'nhk2', name: 'NHK: 地域ニュース',
+    url: 'https://www3.nhk.or.jp/rss/news/cat6.xml' },
+  // ── Yahoo! ニュース ───────────────────────────────────
+  { id: 'yahoo', name: 'Yahoo! ニュース: 国内',
+    url: 'https://news.yahoo.co.jp/rss/topics/domestic.xml' },
+  // ── 政府・公的機関 ────────────────────────────────────
+  { id: 'meti', name: '経済産業省: 新着情報',
+    url: 'https://www.meti.go.jp/rss/whatsnew.rdf' },
+  { id: 'smea', name: '中小企業庁 ミラサポplus',
+    url: 'https://mirasapo-plus.go.jp/rss_feed/' },
+  { id: 'digital', name: 'デジタル庁: 新着情報',
+    url: 'https://www.digital.go.jp/rss' },
+  { id: 'soumu', name: '総務省: 新着情報',
+    url: 'https://www.soumu.go.jp/rss/index.rdf' },
+  { id: 'caa', name: '消費者庁: 新着情報',
+    url: 'https://www.caa.go.jp/rss/whatsnew.rdf' },
+  // ── PR TIMES ─────────────────────────────────────────
+  { id: 'pr1', name: 'PR TIMES: プレミアム商品券',
+    url: 'https://prtimes.jp/topics/keywords/%E3%83%97%E3%83%AC%E3%83%9F%E3%82%A2%E3%83%A0%E5%95%86%E5%93%81%E5%88%B8.rss' },
+  { id: 'pr2', name: 'PR TIMES: 地域振興クーポン',
+    url: 'https://prtimes.jp/topics/keywords/%E5%9C%B0%E5%9F%9F%E6%8C%AF%E8%88%88%E3%82%AF%E3%83%BC%E3%83%9D%E3%83%B3.rss' },
+  { id: 'pr3', name: 'PR TIMES: プレミアム付商品券',
+    url: 'https://prtimes.jp/topics/keywords/%E3%83%97%E3%83%AC%E3%83%9F%E3%82%A2%E3%83%A0%E4%BB%98%E5%95%86%E5%93%81%E5%88%B8.rss' },
+  // ── ニュースメディア ──────────────────────────────────
+  { id: 'jiji', name: '時事通信: 経済',
+    url: 'https://www.jiji.com/rss/ranking.rdf' },
+  { id: 'mainichi', name: '毎日新聞: 経済',
+    url: 'https://mainichi.jp/rss/etc/economic.rss' },
+];
+
+const COUPON_KW = [
+  'プレミアム商品券','地域振興券','地域クーポン','消費喚起クーポン',
+  'プレミアムクーポン','割増商品券','地域復興クーポン','復興クーポン',
+  '商品券','クーポン券','振興クーポン','地域振興','プレミアム付',
+  '買い物クーポン','デジタルクーポン','電子クーポン',
+  '金券','地域金券','プレミアム金券','割増金券',
+  'キャッシュレス還元','ポイント還元','地域通貨','プレミアム付き',
+];
+const EXCLUDE_KW = [
+  '求人','採用','転職','不動産','投資','株式','競馬','パチンコ',
+  'カジノ','出会い','アダルト','海外旅行','航空券',
+];
+const REGION_MAP = {
+  '北海道':'北海道・東北','青森':'北海道・東北','岩手':'北海道・東北',
+  '宮城':'北海道・東北','秋田':'北海道・東北','山形':'北海道・東北','福島':'北海道・東北',
+  '茨城':'関東','栃木':'関東','群馬':'関東','埼玉':'関東',
+  '千葉':'関東','東京':'関東','神奈川':'関東',
+  '新潟':'中部','富山':'中部','石川':'中部','福井':'中部',
+  '山梨':'中部','長野':'中部','岐阜':'中部','静岡':'中部','愛知':'中部',
+  '三重':'近畿','滋賀':'近畿','京都':'近畿','大阪':'近畿',
+  '兵庫':'近畿','奈良':'近畿','和歌山':'近畿',
+  '鳥取':'中国・四国','島根':'中国・四国','岡山':'中国・四国',
+  '広島':'中国・四国','山口':'中国・四国','徳島':'中国・四国',
+  '香川':'中国・四国','愛媛':'中国・四国','高知':'中国・四国',
+  '福岡':'九州・沖縄','佐賀':'九州・沖縄','長崎':'九州・沖縄',
+  '熊本':'九州・沖縄','大分':'九州・沖縄','宮崎':'九州・沖縄',
+  '鹿児島':'九州・沖縄','沖縄':'九州・沖縄',
+};
+
+// ═══════════════════════════════════════════════════
+// RSS パース
+// ═══════════════════════════════════════════════════
+function parseRSS(xmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'text/xml');
+  const items = Array.from(doc.querySelectorAll('item'));
+  return items.map(item => {
+    const get = tag => item.querySelector(tag)?.textContent?.trim() || '';
+    return {
+      title:   get('title'),
+      link:    get('link') || item.querySelector('guid')?.textContent?.trim() || '',
+      summary: get('description').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 150),
+      pubDate: get('pubDate') || get('dc\\:date') || '',
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// フィルタ / ユーティリティ
+// ═══════════════════════════════════════════════════
+function isCoupon(title, summary) {
+  const t = title + ' ' + summary;
+  return COUPON_KW.filter(k => t.includes(k));
+}
+function isExcluded(title, summary) {
+  const t = title + ' ' + summary;
+  return EXCLUDE_KW.some(k => t.includes(k));
+}
+function detectRegion(text) {
+  for (const [pref, block] of Object.entries(REGION_MAP)) {
+    if (text.includes(pref)) return { pref, block };
+  }
+  return { pref: '不明', block: '不明' };
+}
+function extractStartDate(text) {
+  const r1 = text.match(/(?:開始|販売開始|配布開始|利用開始|受付開始|発売|開催|スタート)[：:\s]*(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})/);
+  const r2 = text.match(/(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})日?[\s]*[からより〜～]/);
+  const m = r1 || r2;
+  if (!m) return { disp: '', raw: '' };
+  try {
+    const y = m[1].padStart(4,'0'), mo = m[2].padStart(2,'0'), d = m[3].padStart(2,'0');
+    return { disp: y + '年' + mo + '月' + d + '日', raw: y + '-' + mo + '-' + d };
+  } catch { return { disp: '', raw: '' }; }
+}
+function isUrgent(title) {
+  return ['締切','最終','期限間近','残りわずか','申込終了','受付終了'].some(w => title.includes(w));
+}
+function parseDate(pubDate) {
+  if (!pubDate) return null;
+  try { return new Date(pubDate); } catch { return null; }
+}
+function fmtDate(d) {
+  if (!d) return '不明';
+  const jst = new Date(d.getTime() + 9*60*60*1000);
+  return jst.getUTCFullYear() + '年'
+    + String(jst.getUTCMonth()+1).padStart(2,'0') + '月'
+    + String(jst.getUTCDate()).padStart(2,'0') + '日 '
+    + String(jst.getUTCHours()).padStart(2,'0') + ':'
+    + String(jst.getUTCMinutes()).padStart(2,'0');
+}
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function linkify(text) {
+  const safe = esc(text);
+  return safe.replace(/(https?:\/\/[^\s&<>"]+)/g, u => {
+    const raw = u.replace(/&amp;/g,'&');
+    const label = raw.length > 55 ? raw.slice(0,52)+'...' : raw;
+    return '<a href="' + esc(raw) + '" target="_blank" rel="noopener">' + label + '</a>';
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// メイン収集処理
+// ═══════════════════════════════════════════════════
+async function fetchFeed(feed) {
+  const proxyUrl = PROXY + encodeURIComponent(feed.url);
+  const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  return parseRSS(text);
+}
+
+async function doFetch() {
+  const btn      = document.getElementById('fetchBtn');
+  const statusEl = document.getElementById('statusText');
+  const loadEl   = document.getElementById('loadingSpan');
+
+  btn.disabled = true;
+  loadEl.style.display = 'inline';
+  statusEl.textContent = '';
+
+  const kw         = document.getElementById('kwInput').value.trim();
+  const region     = document.getElementById('regionSel').value;
+  const daysBack   = parseInt(document.getElementById('daysSel').value);
+  const startFrom  = document.getElementById('startFrom').value;
+  const startTo    = document.getElementById('startTo').value;
+
+  const now    = new Date();
+  const cutoff = new Date(now - daysBack * 86400000);
+
+  const allEntries = [];
+  const seenUrls   = new Set();
+  const feedResults = [];
+
+  // 全フィードを並列取得
+  const results = await Promise.allSettled(FEEDS.map(f => fetchFeed(f)));
+
+  results.forEach((result, i) => {
+    const feed = FEEDS[i];
+    if (result.status === 'rejected') {
+      feedResults.push({ name: feed.name, count: 0, status: result.reason?.message || 'ERROR' });
+      return;
+    }
+    const items = result.value;
+    let count = 0;
+
+    for (const item of items) {
+      const { title, link, summary, pubDate } = item;
+      if (!title || !link || seenUrls.has(link)) continue;
+      if (isExcluded(title, summary)) continue;
+
+      const matched = isCoupon(title, summary);
+      if (!matched.length) continue;
+
+      const pubDt = parseDate(pubDate);
+      if (pubDt && pubDt < cutoff) continue;
+
+      const regText = title + ' ' + summary;
+      const { pref, block } = detectRegion(regText);
+      if (region && region !== block) continue;
+      if (kw && !(title + ' ' + summary + ' ' + pref).toLowerCase().includes(kw.toLowerCase())) continue;
+
+      const { disp: startDisp, raw: startRaw } = extractStartDate(title + ' ' + summary);
+      if (startRaw) {
+        if (startFrom && startRaw < startFrom) continue;
+        if (startTo   && startRaw > startTo)   continue;
+      }
+
+      const isNew    = pubDt ? (now - pubDt) < 7*86400000 : false;
+      const srcLabel = feed.name.replace('Google News: ','').replace('NHK: ','').replace('Yahoo! ニュース: ','');
+
+      allEntries.push({
+        title, link, summary, pref, block,
+        publishedAt:  fmtDate(pubDt),
+        publishedRaw: pubDt ? pubDt.toISOString() : '',
+        isNew, isUrgent: isUrgent(title),
+        matched, srcLabel, startDisp, startRaw,
+      });
+      seenUrls.add(link);
+      count++;
+    }
+    feedResults.push({ name: feed.name, count, status: 'ok' });
+  });
+
+  // 新着順ソート
+  allEntries.sort((a,b) => (b.publishedRaw||'').localeCompare(a.publishedRaw||''));
+
+  renderMetrics(allEntries, feedResults);
+  renderFeedLog(feedResults);
+  renderCards(allEntries);
+
+  const ts = now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+  statusEl.textContent = '最終更新: ' + ts + '　収集 ' + allEntries.length + ' 件';
+  loadEl.style.display = 'none';
+  btn.disabled = false;
+}
+
+// ═══════════════════════════════════════════════════
+// 描画
+// ═══════════════════════════════════════════════════
+function renderMetrics(entries, feedResults) {
+  document.getElementById('mTotal').textContent   = entries.length;
+  document.getElementById('mNew').textContent     = entries.filter(e => e.isNew).length;
+  document.getElementById('mUrgent').textContent  = entries.filter(e => e.isUrgent).length;
+  const ok = feedResults.filter(f => f.status === 'ok' && f.count > 0).length;
+  document.getElementById('mFeeds').textContent      = ok;
+  document.getElementById('mFeedsTotal').textContent = '/ ' + FEEDS.length + ' 件';
+}
+
+function renderFeedLog(results) {
+  const log  = document.getElementById('feedLog');
+  const tbody = document.getElementById('feedTableBody');
+  log.style.display = 'block';
+  tbody.innerHTML = results.map(f => {
+    const cls = f.status === 'ok' ? 'st-ok' : 'st-err';
+    return '<tr><td>' + esc(f.name) + '</td><td>' + f.count + ' 件</td>'
+      + '<td class="' + cls + '">' + esc(f.status) + '</td></tr>';
+  }).join('');
+}
+
+function renderCards(entries) {
+  const list = document.getElementById('cardList');
+  if (!entries.length) {
+    list.innerHTML = '<div class="empty"><span class="empty-icon">🔍</span>条件に一致するクーポン情報が見つかりませんでした</div>';
+    return;
+  }
+  list.innerHTML = entries.map(e => {
+    const hasUrl   = e.link && e.link.trim();
+    const titleHtml = hasUrl
+      ? '<a class="card-title" href="' + esc(e.link) + '" target="_blank" rel="noopener">' + esc(e.title) + '</a>'
+      : '<span class="card-title-plain">' + esc(e.title) + '</span>';
+    const footerHtml = hasUrl
+      ? '<div class="card-footer"><a class="btn-link" href="' + esc(e.link) + '" target="_blank" rel="noopener">元記事を開く →</a></div>'
+      : '';
+    return '<div class="card' + (e.isNew ? ' is-new' : '') + '">'
+      + '<div class="card-top">' + titleHtml
+      + '<div class="badges">'
+      + (e.isNew    ? '<span class="badge b-new">NEW</span>' : '')
+      + (e.isUrgent ? '<span class="badge b-urgent">締切間近</span>' : '')
+      + (e.block !== '不明' ? '<span class="badge b-area">' + esc(e.block) + '</span>' : '')
+      + '<span class="badge b-src">' + esc(e.srcLabel) + '</span>'
+      + '</div></div>'
+      + '<div class="card-meta">'
+      + '<span>📅 記事: ' + esc(e.publishedAt) + '</span>'
+      + (e.startDisp ? '<span class="meta-start">🗓 開始: ' + esc(e.startDisp) + '</span>' : '')
+      + (e.pref !== '不明' ? '<span>📍 ' + esc(e.pref) + '</span>' : '')
+      + '</div>'
+      + '<div class="card-summary">' + linkify(e.summary) + '</div>'
+      + '<div class="card-kws">' + e.matched.slice(0,4).map(k => '<span class="badge b-kw">' + esc(k) + '</span>').join('') + '</div>'
+      + footerHtml
+      + '</div>';
+  }).join('');
+}
+
+function clearDates() {
+  document.getElementById('startFrom').value = '';
+  document.getElementById('startTo').value   = '';
+}
+</script>
+</body>
+</html>
