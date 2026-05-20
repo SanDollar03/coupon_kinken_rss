@@ -336,7 +336,7 @@ select { cursor: pointer; }
   <div class="status-bar">
     <span id="statusText">「RSS収集を実行」を押してください</span>
     <span id="loadingSpan" style="display:none">
-      <span class="spinner"></span>RSSフィードを取得中...
+      <span class="spinner"></span><span id="loadingText">RSSフィードを取得中... (0 / 25)</span>
     </span>
   </div>
 
@@ -540,12 +540,28 @@ function linkify(text) {
 // ═══════════════════════════════════════════════════
 // メイン収集処理
 // ═══════════════════════════════════════════════════
-async function fetchFeed(feed) {
-  const proxyUrl = PROXY + encodeURIComponent(feed.url);
-  const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const text = await res.text();
-  return parseRSS(text);
+async function fetchFeed(feed, attempt) {
+  attempt = attempt || 1;
+  const TIMEOUT_MS = 25000;            // 25秒
+  const MAX_RETRY  = 2;                // 最大2回リトライ（計3回試行）
+  const RETRY_WAIT = 2000;             // リトライ前の待機ms
+  const proxyUrl   = PROXY + encodeURIComponent(feed.url);
+  try {
+    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    return { items: parseRSS(text), retried: attempt - 1 };
+  } catch (err) {
+    if (attempt <= MAX_RETRY) {
+      await new Promise(r => setTimeout(r, RETRY_WAIT * attempt));
+      return fetchFeed(feed, attempt + 1);
+    }
+    // タイムアウトか接続エラーかを分類
+    const isTimeout = err.name === 'TimeoutError'
+      || (err.message && err.message.toLowerCase().includes('timeout'))
+      || (err.message && err.message.toLowerCase().includes('timed out'));
+    throw { message: isTimeout ? 'TIMEOUT' : (err.message || 'ERROR'), isTimeout };
+  }
 }
 
 async function doFetch() {
@@ -570,16 +586,32 @@ async function doFetch() {
   const seenUrls   = new Set();
   const feedResults = [];
 
-  // 全フィードを並列取得
-  const results = await Promise.allSettled(FEEDS.map(f => fetchFeed(f)));
+  // 全フィードを並列取得（リトライ付き）
+  // 進捗カウンタ付き並列取得
+  let doneCount = 0;
+  const loadTxt = document.getElementById('loadingText');
+  function updateProgress() {
+    doneCount++;
+    if (loadTxt) loadTxt.textContent = 'RSSフィードを取得中... (' + doneCount + ' / ' + FEEDS.length + ')';
+  }
+  const results = await Promise.allSettled(
+    FEEDS.map(f => fetchFeed(f).then(r => { updateProgress(); return r; }, e => { updateProgress(); throw e; }))
+  );
 
+  let timeoutCount = 0;
+  let errorCount   = 0;
   results.forEach((result, i) => {
     const feed = FEEDS[i];
     if (result.status === 'rejected') {
-      feedResults.push({ name: feed.name, count: 0, status: result.reason?.message || 'ERROR' });
+      const r = result.reason || {};
+      const st = r.isTimeout ? 'TIMEOUT' : (r.message || 'ERROR');
+      if (r.isTimeout) timeoutCount++;
+      else errorCount++;
+      feedResults.push({ name: feed.name, count: 0, status: st });
       return;
     }
-    const items = result.value;
+    const { items, retried } = result.value;
+    const st = retried > 0 ? 'ok(retry:' + retried + ')' : 'ok';
     let count = 0;
 
     for (const item of items) {
@@ -617,7 +649,7 @@ async function doFetch() {
       seenUrls.add(link);
       count++;
     }
-    feedResults.push({ name: feed.name, count, status: 'ok' });
+    feedResults.push({ name: feed.name, count, status: st });
   });
 
   // 新着順ソート
@@ -628,7 +660,10 @@ async function doFetch() {
   renderCards(allEntries);
 
   const ts = now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-  statusEl.textContent = '最終更新: ' + ts + '　収集 ' + allEntries.length + ' 件';
+  let statusMsg = '最終更新: ' + ts + '　収集 ' + allEntries.length + ' 件';
+  if (timeoutCount > 0) statusMsg += '　⚠ タイムアウト ' + timeoutCount + '件（再試行済み）';
+  if (errorCount   > 0) statusMsg += '　✗ エラー ' + errorCount + '件';
+  statusEl.textContent = statusMsg;
   loadEl.style.display = 'none';
   btn.disabled = false;
 }
@@ -650,7 +685,10 @@ function renderFeedLog(results) {
   const tbody = document.getElementById('feedTableBody');
   log.style.display = 'block';
   tbody.innerHTML = results.map(f => {
-    const cls = f.status === 'ok' ? 'st-ok' : 'st-err';
+    const cls = f.status === 'ok' ? 'st-ok'
+      : f.status.startsWith('ok(') ? 'st-warn'
+      : f.status === 'TIMEOUT'     ? 'st-warn'
+      : 'st-err';
     return '<tr><td>' + esc(f.name) + '</td><td>' + f.count + ' 件</td>'
       + '<td class="' + cls + '">' + esc(f.status) + '</td></tr>';
   }).join('');
